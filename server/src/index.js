@@ -13,6 +13,31 @@ let mongoAvailable = false
 let memoryLearner = structuredClone(demoLearner)
 const memoryMessages = [...demoMessages]
 
+function tutorProvider() {
+  const openRouterKey = process.env.OPENROUTER_API_KEY?.trim()
+  if (openRouterKey) return {
+    provider: 'openrouter',
+    key: openRouterKey,
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    model: process.env.OPENROUTER_MODEL || 'openrouter/free',
+  }
+
+  const legacyKey = process.env.OPENAI_API_KEY?.trim()
+  if (legacyKey?.startsWith('sk-or-')) return {
+    provider: 'openrouter',
+    key: legacyKey,
+    url: 'https://openrouter.ai/api/v1/chat/completions',
+    model: process.env.OPENROUTER_MODEL || process.env.OPENAI_MODEL || 'openrouter/free',
+  }
+  if (legacyKey) return {
+    provider: 'openai',
+    key: legacyKey,
+    url: 'https://api.openai.com/v1/chat/completions',
+    model: process.env.OPENAI_MODEL || 'gpt-4o-mini',
+  }
+  return null
+}
+
 app.use(cors())
 app.use(express.json({ limit: '32kb' }))
 
@@ -78,7 +103,8 @@ app.get('/api/dashboard', async (_req, res, next) => {
       },
       plan: learner.activePlan,
       stats: { minutes: learner.completedMinutes, streak: learner.streak, weeklyStudy: weeklyStudy(learner.completedMinutes) },
-      tutorMode: process.env.OPENAI_API_KEY ? 'ai' : 'demo',
+      tutorMode: tutorProvider() ? 'ai' : 'demo',
+      tutorProvider: tutorProvider()?.provider || 'demo',
       storageMode: mongoAvailable ? 'mongodb' : 'demo',
     })
   } catch (error) { next(error) }
@@ -138,17 +164,22 @@ function demoTutorReply(message, learner) {
   return `Good question. Here's a useful way to approach it: connect the idea to something you already care about (${learner.interests[0] || 'your interests'}), then test it with one small example. What have you tried so far?`
 }
 
-async function getTutorAnswer(message, learner, history) {
-  if (!process.env.OPENAI_API_KEY) return demoTutorReply(message, learner)
+async function getTutorAnswer(message, learner, history, provider) {
+  if (!provider) return demoTutorReply(message, learner)
   const messages = [
     { role: 'system', content: `You are Morrow, a warm and practical personal learning coach. The learner is ${learner.name}, at a ${learner.level} level. Their interests are ${(learner.interests || []).join(', ')}. They learn best through ${learner.learningStyle} activities and are studying ${learner.activePlan.title}. Explain with concrete examples related to their interests, ask one useful follow-up question, and help them reason rather than simply giving away answers. Keep replies concise and encouraging.` },
     ...history.slice(-10).map(item => ({ role: item.role, content: item.content })),
     { role: 'user', content: message },
   ]
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  const headers = {
+    Authorization: `Bearer ${provider.key}`,
+    'Content-Type': 'application/json',
+  }
+  if (provider.provider === 'openrouter') headers['X-Title'] = 'Morrow Learning Agent'
+  const response = await fetch(provider.url, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: process.env.OPENAI_MODEL || 'gpt-4o-mini', messages, temperature: 0.7, max_tokens: 350 }),
+    headers,
+    body: JSON.stringify({ model: provider.model, messages, temperature: 0.7, max_tokens: 350 }),
   })
   if (!response.ok) throw new Error(`Tutor provider returned ${response.status}.`)
   const data = await response.json()
@@ -174,7 +205,8 @@ app.post('/api/chat', async (req, res, next) => {
     const history = mongoAvailable
       ? await ChatMessage.find({ learnerId: learner._id }).sort({ createdAt: 1 }).limit(10).lean()
       : memoryMessages.slice(-10)
-    const reply = await getTutorAnswer(message, learner, history)
+    const provider = tutorProvider()
+    const reply = await getTutorAnswer(message, learner, history, provider)
     const userMessage = { role: 'user', content: message, at: new Date().toISOString() }
     const assistantMessage = { role: 'assistant', content: reply, at: new Date().toISOString() }
     if (mongoAvailable) {
@@ -186,7 +218,7 @@ app.post('/api/chat', async (req, res, next) => {
       memoryMessages.push(userMessage, assistantMessage)
       if (memoryMessages.length > 80) memoryMessages.splice(0, memoryMessages.length - 80)
     }
-    res.json({ reply, mode: process.env.OPENAI_API_KEY ? 'ai' : 'demo' })
+    res.json({ reply, mode: provider ? 'ai' : 'demo', provider: provider?.provider || 'demo' })
   } catch (error) { next(error) }
 })
 

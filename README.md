@@ -20,11 +20,14 @@ Copy `server/.env.example` to `server/.env`, then set the values you want to use
 ```env
 PORT=5000
 MONGO_URI=mongodb://127.0.0.1:27017/morrow
+OPENROUTER_API_KEY=your-openrouter-key
+OPENROUTER_MODEL=openrouter/free
+# Optional OpenAI fallback
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
 ```
 
-MongoDB is optional for the demo. If it is unavailable, the API uses the included in-memory learner and chat history. Add an OpenAI API key to enable model-backed tutor replies; without one, the tutor uses its built-in demo coach. The key stays on the server and is never sent to the browser.
+MongoDB is optional for the demo. If it is unavailable, the API uses the included in-memory learner and chat history. Add an OpenRouter key to enable model-backed tutor replies. The default `openrouter/free` model router selects an available free model; set `OPENROUTER_MODEL` to any model ID from OpenRouter to choose one yourself. OpenAI remains supported as a fallback. Without either key, the tutor uses its built-in demo coach. Provider keys stay on the server and are never sent to the browser.
 
 ## Build and run the API
 

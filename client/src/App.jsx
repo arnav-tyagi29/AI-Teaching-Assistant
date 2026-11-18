@@ -233,14 +233,14 @@ function Tutor({ profile, onBack }) {
   const [messages, setMessages] = useState([])
   const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
-  const [mode, setMode] = useState('demo')
+  const [provider, setProvider] = useState('demo')
   const [error, setError] = useState('')
   const bottomRef = useRef(null)
   const starterPrompts = ['Explain personas simply', 'Quiz me on what I learned', 'Help me get unstuck']
 
   useEffect(() => {
     request('/api/chat/history').then(result => setMessages(result.messages || [])).catch(() => {})
-    request('/api/dashboard').then(result => setMode(result.tutorMode)).catch(() => {})
+    request('/api/dashboard').then(result => setProvider(result.tutorProvider || result.tutorMode)).catch(() => {})
   }, [])
   useEffect(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), [messages, sending])
 
@@ -251,7 +251,7 @@ function Tutor({ profile, onBack }) {
     setMessages(current => [...current, { role: 'user', content: trimmed, at: new Date().toISOString() }])
     try {
       const result = await request('/api/chat', { method: 'POST', body: JSON.stringify({ message: trimmed }) })
-      setMode(result.mode)
+      setProvider(result.provider || result.mode)
       setMessages(current => [...current, { role: 'assistant', content: result.reply, at: new Date().toISOString() }])
     } catch (sendError) { setError(sendError.message); }
     finally { setSending(false) }
@@ -260,7 +260,7 @@ function Tutor({ profile, onBack }) {
   return <div className="page-content tutor-page">
     <div className="page-heading-row"><div><button className="back-link" onClick={onBack}><ChevronLeft size={15} /> Back to today</button><h1>A space to wonder.</h1><p className="subheading">A friendly tutor who learns how you like to learn.</p></div><div className="tutor-online"><span /> HERE WITH YOU</div></div>
     <div className="tutor-layout"><section className="chat-card">
-      <div className="chat-topbar"><div className="tutor-avatar"><Sparkles size={20} /></div><div><strong>Your learning sidekick</strong><small>{mode === 'ai' ? 'Powered by your AI tutor' : 'Ready to explore together'}</small></div><button aria-label="More tutor options"><MoreHorizontal size={19} /></button></div>
+      <div className="chat-topbar"><div className="tutor-avatar"><Sparkles size={20} /></div><div><strong>Your learning sidekick</strong><small>{provider === 'openrouter' ? 'Connected through OpenRouter' : provider === 'openai' ? 'Connected to OpenAI' : 'Demo tutor · ready to explore'}</small></div><button aria-label="More tutor options"><MoreHorizontal size={19} /></button></div>
       <div className="chat-messages">
         <div className="date-divider"><span>YOUR CONVERSATION</span></div>
         <div className="message-row assistant"><div className="message-avatar"><Sparkles size={13} /></div><div className="message-bubble"><p>Hey {profile.name.split(' ')[0]}! I’m here for whatever’s on your mind. We can untangle a tricky idea, try a quick quiz, or follow a question wherever it takes us.</p><small>Just now</small></div></div>
