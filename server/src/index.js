@@ -22,7 +22,10 @@ async function connectMongo() {
     await mongoose.connect(process.env.MONGO_URI, { serverSelectionTimeoutMS: 2500 })
     mongoAvailable = true
     let learner = await Learner.findOne({ email: demoLearner.email })
-    if (!learner) learner = await Learner.create(demoLearner)
+    if (!learner) {
+      const { _id: _demoId, ...seed } = demoLearner
+      learner = await Learner.create(seed)
+    }
     console.log('MongoDB connected; using persistent learner data.')
   } catch (error) {
     console.warn(`MongoDB unavailable (${error.message}). Starting in demo mode.`)
