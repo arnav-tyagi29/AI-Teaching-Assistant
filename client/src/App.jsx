@@ -242,7 +242,9 @@ function Tutor({ profile, onBack }) {
     request('/api/chat/history').then(result => setMessages(result.messages || [])).catch(() => {})
     request('/api/dashboard').then(result => setProvider(result.tutorProvider || result.tutorMode)).catch(() => {})
   }, [])
-  useEffect(() => bottomRef.current?.scrollIntoView({ behavior: 'smooth' }), [messages, sending])
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }, [messages, sending])
 
   const sendMessage = async (text = input) => {
     const trimmed = text.trim()
