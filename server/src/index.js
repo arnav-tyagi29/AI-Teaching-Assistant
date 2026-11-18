@@ -1,4 +1,6 @@
 import 'dotenv/config'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
 import cors from 'cors'
 import express from 'express'
 import mongoose from 'mongoose'
@@ -8,6 +10,8 @@ import { demoLearner, demoMessages, makePlan } from './data/demo.js'
 
 const app = express()
 const port = process.env.PORT || 5000
+const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../')
+const clientDist = path.join(projectRoot, 'client', 'dist')
 const demoId = demoLearner._id
 let mongoAvailable = false
 let memoryLearner = structuredClone(demoLearner)
@@ -221,6 +225,16 @@ app.post('/api/chat', async (req, res, next) => {
     res.json({ reply, mode: provider ? 'ai' : 'demo', provider: provider?.provider || 'demo' })
   } catch (error) { next(error) }
 })
+
+if (process.env.NODE_ENV === 'production') {
+  app.use(express.static(clientDist))
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api/')) return next()
+    res.sendFile(path.join(clientDist, 'index.html'), error => {
+      if (error) next(error)
+    })
+  })
+}
 
 app.use((error, _req, res, _next) => {
   console.error(error)

@@ -38,6 +38,12 @@ npm start
 
 `npm start` serves the API on port 5000. For local development, `npm run dev` starts both workspaces with file watching and the Vite `/api` proxy.
 
+## Deploy to Render
+
+The root `render.yaml` defines a free Render web service. The Express server serves the Vite production build from the same origin, and `/api/health` is used for health checks. To deploy, push `main` to GitHub, create a new Blueprint in Render, and select this repository. Enter the OpenRouter key when Render prompts for `OPENROUTER_API_KEY`; the key is intentionally not stored in this repository.
+
+Without `MONGO_URI`, the hosted app uses demo in-memory storage, so learner progress and chat history can reset when the service restarts. For persistent data, add a MongoDB Atlas connection string as `MONGO_URI` in the Render service environment. Render's free web service sleeps after 15 minutes without traffic, so its first request after idle can take about a minute to wake.
+
 ## Main API routes
 
 | Method | Route | Purpose |
@@ -55,4 +61,4 @@ npm start
 - **MongoDB / Mongoose** for learner profiles, paths, lessons, and chat messages
 - **Express** for the REST API
 - **React / Vite** for the responsive web app
-- **OpenAI Chat Completions API** for optional model-backed tutoring
+- **OpenRouter Chat Completions API** for optional model-backed tutoring, with OpenAI as a fallback
